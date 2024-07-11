@@ -2,6 +2,7 @@
 env: "local" # local, dev, prod
 db_path: "user=postgres password=postgres dbname=postgres sslmode=disable"
 storage_path: "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"
+sync_timeout: 300s
 listener:
   addr: "localhost:8080"
   timeout: 4s

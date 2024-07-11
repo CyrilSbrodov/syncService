@@ -54,7 +54,7 @@ func (a *ServerApp) Run() {
 		a.logger.Error("failed to start k8s", err)
 		return
 	}
-	sync := syncer.NewSyncer(k8s, db, a.logger)
+	sync := syncer.NewSyncer(k8s, db, a.logger, a.cfg)
 	go sync.Start()
 
 	srv := &http.Server{

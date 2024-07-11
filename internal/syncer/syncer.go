@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/CyrilSbrodov/syncService/cmd/loggers"
+	"github.com/CyrilSbrodov/syncService/internal/config"
 	"github.com/CyrilSbrodov/syncService/internal/deployer"
 	"github.com/CyrilSbrodov/syncService/internal/storage"
-	"log"
 	"time"
 )
 
@@ -15,20 +15,22 @@ type Syncer struct {
 	store    storage.Storage
 	deployer deployer.Deployer
 	logger   *loggers.Logger
+	cfg      config.Config
 }
 
 // NewSyncer - конструктор синкера
-func NewSyncer(d deployer.Deployer, store storage.Storage, logger *loggers.Logger) *Syncer {
+func NewSyncer(d deployer.Deployer, store storage.Storage, logger *loggers.Logger, cfg config.Config) *Syncer {
 	return &Syncer{
 		store:    store,
 		deployer: d,
 		logger:   logger,
+		cfg:      cfg,
 	}
 }
 
 // Start - функция запуска синкера с таймером на 5 минут
 func (s *Syncer) Start() {
-	ticker := time.NewTicker(5 * time.Minute)
+	ticker := time.NewTicker(s.cfg.SyncTimeout)
 	for {
 		select {
 		case <-ticker.C:
@@ -41,9 +43,12 @@ func (s *Syncer) Start() {
 func (s *Syncer) syncAlgorithms() {
 	algorithms, err := s.store.GetAlgorithmStatus(context.Background())
 	if err != nil {
-		log.Println("Error fetching clients:", err)
+		s.logger.Error("Error fetching clients:", err)
 		return
 	}
+
+	list, _ := s.deployer.GetPodList()
+	fmt.Println(list)
 
 	if algorithms == nil {
 		return

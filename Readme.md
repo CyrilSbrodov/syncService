@@ -4,225 +4,110 @@ ____
 1. [ЗАВИСИМОСТИ](#зависимости).
 2. [ЗАПУСК/СБОРКА](#запусксборка).
    2.1 [Конфигурация](#конфигурация).
-   2.1.1 [Флаги](#1-флаги).
-   2.1.2 [Облачные переменные](#2-облачные-переменные).
-   2.1.3 [Конфигурационный файл](#3-конфигурационный-файл).
    2.2 [Запуск сервера](#запуск-сервера).
-   2.3 [Запуск агента](#запуск-агента).
-3. [Для разработчиков](#для-разработчиков).
-   3.1 [Агент](#1-агент).
-   3.2 [Сервер](#2-сервер).
+3. [О сервисе](#о-сервисе).
 ____
 
 # Сервис синхронизации алгоритмов.
 
 Сервис позволяет создавать, удалять, изменять клиентов и их алгоритмы. В автоматическом режиме, раз в 5 минут сервис проверяет базу данных, если в базе он находит алгоритмы со статусом true, то запускает pod. Если статус pod false, то сервис удаляет pod, если такой ранее был создан, или ничего не делает.
 
-Структура [клиента](https://github.com/CyrilSbrodov/metricService/blob/main/internal/storage/models.go):
+Структура [клиента и алгоритмов](https://github.com/CyrilSbrodov/syncService/blob/main/internal/model/models.go):
 ```GO
-type Metrics struct {
-	ID    string   `json:"id"`              // имя метрики.
-	MType string   `json:"type"`            // параметр, принимающий значение Gauge или Counter.
-	Delta *int64   `json:"delta,omitempty"` // значение метрики в случае передачи Counter.
-	Value *float64 `json:"value,omitempty"` // значение метрики в случае передачи Gauge.
-	Hash  string   `json:"hash,omitempty"`  // значение хеш-функции.
+// Client - структура клиента.
+type Client struct {
+    ID          int64     `json:"id"`
+    ClientName  string    `json:"client_name"`
+    Version     int       `json:"version"`
+    Image       string    `json:"image"`
+    CPU         string    `json:"cpu"`
+    Memory      string    `json:"memory"`
+    Priority    float64   `json:"priority"`
+    NeedRestart bool      `json:"needRestart"`
+    SpawnedAt   time.Time `json:"spawned_at"`
+    CreatedAt   time.Time `json:"created_at"`
+    UpdatedAt   time.Time `json:"updated_at"`
 }
-```
-Виды собираемых [метрик](https://cs.opensource.google/go/go/+/go1.20.3:src/runtime/mstats.go;l=58):
-```GO
-type MemStats struct {
-	Alloc uint64
-	TotalAlloc uint64
-	Sys uint64
-	Lookups uint64
-	Mallocs uint64
-	//etc.
+
+// AlgorithmStatus - структура алгоритмов
+type AlgorithmStatus struct {
+    AlgorithmID int64 `json:"algorithm_id"`
+    ClientID    int64 `json:"client_id"`
+    VWAP        bool  `json:"vwap"`
+    TWAP        bool  `json:"twap"`
+    HFT         bool  `json:"hft"`
 }
 ```
 
 Структура сервиса следующая:
 1) Сервер - обработка полученных данных и отправка их в БД Postgres.
-2) Агент - сбор данных с ПК.
+2) Синкер - проверка состояния алгоритмов (создание или удаление pods).
 3) БД - прием получаемых данных.
 ____
 # ЗАВИСИМОСТИ.
 
 Используется язык go версии 1.18. Используемые библиотеки:
-- github.com/caarlos0/env/v6 v6.10.1
-- github.com/go-chi/chi/v5 v5.0.7
-- github.com/jackc/pgx/v5 v5.0.4
-- github.com/lib/pq v1.10.7
-- github.com/rs/zerolog v1.28.0
-- github.com/shirou/gopsutil/v3 v3.22.10
-- github.com/stretchr/testify v1.8.1
-- golang.org/x/tools v0.5.0
-- honnef.co/go/tools v0.3.3
-- POSTGRESQL v17
+- github.com/gorilla/mux v1.8.1
+- github.com/ilyakaznacheev/cleanenv v1.5.0
+- github.com/lib/pq v1.10.9
+- github.com/stretchr/testify v1.9.0
+- k8s.io/api v0.30.2
+- k8s.io/apimachinery v0.30.2
+- k8s.io/client-go v0.30.2
+- POSTGRESQL latest
 ____
 
-# ЗАПУСК/СБОРКА
+# ЗАПУСК/СБОРКА.
 
-## Конфигурация
+## Конфигурация.
 
 Предусмотрены различные конфигурации:
 1) флаги
 2) облачные переменные
 3) конфигурационный файл
 
-Флаги при запуске сервера:
+## Запуск сервера.
+
+Есть несколько способов запуска:
+- Если у Вас установлен make, то можно использовать Makefile. Необходимо в консоле прописать:
 ```
--a //адрес сервера
--i //интервал сохранения метрик в файл
--f //файл сохранения метрик
--r //включение восстановления метрик из файла
--k //hash key
--d //адрес бд
--crypto-key //имя файла ключа шифрования
--crypto-key-path //путь файла шифрования
--t //CIDR
--grpc //адрес grpc
--config //конфигурационный файл
-```
-Флаги при запуске агента:
-```
--a //адрес сервера
--p //интервал обновления метрик
--r //интервал отправки метрик на сервер
--k //hash key
--crypto-key //имя файла ключа шифрования
--crypto-key-path //путь файла шифрования
--t //CIDR
--grpc //адрес grpc
+make run
 ```
 
-## 1) Флаги
-Параметры запуска передаются в формате: -a localhost:8080,
-где "-а" параметр адреса сервера, "localhost:8080" адрес сервера.
-
-Это позволяет запускать утилиту следующим образом:
+- Можно запустить сервер из пакета [cmd](https://github.com/CyrilSbrodov/syncService/blob/main/cmd/main.go)
 ```
-cd cmd/server
-go run main.go -a localhost:8080
-```
-
-## 2) Облачные переменные
-Перед запуском утилиты необходимо присвоить переменным значения в формате:
-```
-ADDRESS='localhost:8080'
-```
-где "ADDRESS" - облачная переменная, 'localhost:8080' присвоение значения данной переменной.
-
-## 3) Конфигурационный файл
-Для исрользования конфиг файла нужен следующий формат:
-```
-{
-    "address": "localhost:8080"
-    //etc.
-}
-```
-## Запуск сервера
-
-Необходимо запустить сервер из пакета [cmd](https://github.com/CyrilSbrodov/metricService/blob/main/cmd/server/main.go)
-```
-cd cmd/server
+cd cmd
 go run main.go
 ```
-
-## Запуск агента
-
-Необходимо запустить агент из пакета [cmd](https://github.com/CyrilSbrodov/metricService/blob/main/cmd/agent/main.go)
+- Если у Вас не установлена База PostgreSQL, то можно запустить файл docker-compose командой:
 ```
-cd cmd/agent
-go run main.go
+docker compose up -d
+либо
+docker-compose up -d
 ```
-____
 
-# Для разработчиков
+# О сервсие.
 Структура приложения позволяет нативно вносить корректировки:
-[Структура агента](https://github.com/CyrilSbrodov/metricService/blob/main/internal/app/agent.go):
+
+[Структура сервера](https://github.com/CyrilSbrodov/syncService/blob/main/internal/app/app.go):
 ```GO
-type AgentApp struct {
-	client *http.Client // клиент
-	cfg    config.AgentConfig // конфиг
-	logger *loggers.Logger // логгер
-	public *rsa.PublicKey // публичный ключ шифрования
-	url    string 
-	wg     sync.WaitGroup
-}
-```
-[Структура сервера](https://github.com/CyrilSbrodov/metricService/blob/main/internal/app/server.go):
-```GO
+// ServerApp - структура сервера
 type ServerApp struct {
-	router   *chi.Mux // роутер
-	cfg      config.ServerConfig // конфиг
-	logger   *loggers.Logger // логгер
-	cryptoer crypto.Cryptoer // интерфейс шифрования
-	private  *rsa.PrivateKey // приватный ключ шифрования
+    cfg    config.Config
+    logger *loggers.Logger
+    router *mux.Router
 }
 ```
 
-Немного о сервере и агенте:
+Немного о сервере:
 
-# 1. Агент
-
-Метрики собираются с интерваорм, согласно конфигу (по умолчанию интервал составляет 2 секунды).
-Метрики отправляются на сервер по одной и батчами с интервалом, согласно конфигу (по умолчанию интервал составляет 10 секунд).
-
-Возможность выбора отправки метрик по протоколам http или gRPC (если в конфиге указан адрес gRPC, то метрики автоматически отправляются по этому протоколу (по умаолчанию отправка по http))
+Сервер получает данные по следующим эндпоинтам:
+[http](https://github.com/CyrilSbrodov/syncService/blob/main/internal/handlers/handler.go):
 ```GO
-flag.StringVar(&cfgAgent.GRPCAddr, "grpc", "", "grpc port")
-```
-
-Возможность выбора шифрования (если в конфиге указано имя крипто файла, то все метрики шифруются перед отправкой на сервер (по умолчанию шифрование отключено)).
-```GO
-flag.StringVar(&cfgAgent.CryptoPROKey, "crypto-key", "", "crypto file")
-```
-
-# 2. Сервер
-Сервер получает метрики по следующим эндпоинтам:
-1) [http](https://github.com/CyrilSbrodov/metricService/blob/main/internal/handlers/handler.go):
-```GO
-func (h *Handler) Register(r *chi.Mux) {
-	r.Post("/value/", trustedSubnet(h.cfg, gzipHandle(h.GetHandlerJSON())))
-	r.Get("/value/*", trustedSubnet(h.cfg, gzipHandle(h.GetHandler())))
-	r.Get("/", gzipHandle(h.GetAllHandler()))
-	r.Post("/update/", trustedSubnet(h.cfg, gzipHandle(h.CollectHandler())))
-	r.Post("/update/gauge/*", trustedSubnet(h.cfg, gzipHandle(h.GaugeHandler())))
-	r.Post("/update/counter/*", trustedSubnet(h.cfg, gzipHandle(h.CounterHandler())))
-	r.Post("/*", trustedSubnet(h.cfg, gzipHandle(h.OtherHandler())))
-	r.Get("/ping", h.PingDB())
-	r.Post("/updates/", trustedSubnet(h.cfg, gzipHandle(h.CollectBatchHandler())))
-	r.Mount("/debug", middleware.Profiler())
-}
-```
-2) [gRPC](https://github.com/CyrilSbrodov/metricService/blob/main/internal/app/protoserver/server.go):
-```GO
-//получение метрик по одной
-func (s *StoreServer) CollectMetric(ctx context.Context, in *pb.AddMetricRequest) (*pb.AddMetricResponse, error) {
-	var response pb.AddMetricResponse
-	var m storage.Metrics
-	metric, err := s.Storage.GetMetric(*m.ToMetric(in.Metrics))
-	if err != nil {
-		s.logger.LogErr(err, "")
-		return nil, err
-	}
-	response.Metrics = metric.ToProto()
-	return &response, nil
-}
-
-// получение метрик батчами
-func (s *StoreServer) CollectMetrics(ctx context.Context, in *pb.AddMetricsRequest) (*pb.AddMetricsResponse, error) {
-	var response pb.AddMetricsResponse
-	var metrics []storage.Metrics
-	var m storage.Metrics
-	for _, metric := range in.Metrics {
-		metrics = append(metrics, *m.ToMetric(metric))
-	}
-	err := s.Storage.CollectMetrics(metrics)
-	if err != nil {
-		s.logger.LogErr(err, "")
-		return nil, err
-	}
-	return &response, nil
+func (h *Handler) Register(r *mux.Router) {
+    r.HandleFunc("/api/client", h.AddClient()).Methods("POST")
+    r.HandleFunc("/api/client", h.UpdateClient()).Methods("PUT")
+    r.HandleFunc("/api/client", h.DeleteClient()).Methods("DELETE")
+    r.HandleFunc("/api/algorithms", h.UpdateAlgorithmStatus()).Methods("POST")
 }
 ```
