@@ -11,4 +11,5 @@ type Storage interface {
 	UpdateClient(ctx context.Context, client *model.Client) error
 	DeleteClient(ctx context.Context, client *model.Client) error
 	UpdateAlgorithmStatus(ctx context.Context, as *model.AlgorithmStatus) error
+	GetAlgorithmStatus(ctx context.Context) ([]model.AlgorithmStatus, error)
 }

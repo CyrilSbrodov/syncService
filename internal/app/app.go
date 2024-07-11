@@ -5,8 +5,10 @@ import (
 	"errors"
 	"github.com/CyrilSbrodov/syncService/cmd/loggers"
 	"github.com/CyrilSbrodov/syncService/internal/config"
+	"github.com/CyrilSbrodov/syncService/internal/deployer/kubernetes"
 	"github.com/CyrilSbrodov/syncService/internal/handlers"
 	"github.com/CyrilSbrodov/syncService/internal/storage/postgres"
+	"github.com/CyrilSbrodov/syncService/internal/syncer"
 	"github.com/gorilla/mux"
 	"log/slog"
 	"net/http"
@@ -16,12 +18,14 @@ import (
 	"time"
 )
 
+// ServerApp - структура сервера
 type ServerApp struct {
 	cfg    config.Config
 	logger *loggers.Logger
 	router *mux.Router
 }
 
+// NewServerApp - конструктор сервера
 func NewServerApp() *ServerApp {
 	cfg := config.NewConfig()
 	router := mux.NewRouter()
@@ -34,6 +38,7 @@ func NewServerApp() *ServerApp {
 	}
 }
 
+// Run - функция запуска сервера с gracefully shutdown
 func (a *ServerApp) Run() {
 	db, err := postgres.NewPGStore(&a.cfg, a.logger)
 	if err != nil {
@@ -43,6 +48,14 @@ func (a *ServerApp) Run() {
 	h := handlers.NewHandler(&a.cfg, a.logger, db)
 
 	h.Register(a.router)
+
+	k8s, err := kubernetes.NewKubernetesDeployer()
+	if err != nil {
+		a.logger.Error("failed to start k8s", err)
+		return
+	}
+	sync := syncer.NewSyncer(k8s, db, a.logger)
+	go sync.Start()
 
 	srv := &http.Server{
 		Addr:         a.cfg.Listener.Addr,

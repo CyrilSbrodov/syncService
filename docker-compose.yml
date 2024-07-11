@@ -1,10 +1,28 @@
-version: "3.1"
+version: "3.7"
+#name: sync-group
+#networks:
+#  api_network:
+
 services:
   postgres:
     image: postgres
+    container_name: postgres
+    hostname: postgres
+    #networks:
+    #  - api_network
     environment:
       POSTGRES_DB: "postgres"
       POSTGRES_USER: "postgres"
       POSTGRES_PASSWORD: "postgres"
     ports:
       - "5432:5432"
+
+  #sync:
+  #  build: .
+  #  container_name: sync
+  #  hostname: sync
+  #  restart: always
+  #  depends_on:
+  #    - postgres
+  #  networks:
+  #    - api_network

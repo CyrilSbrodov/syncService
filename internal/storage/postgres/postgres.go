@@ -11,6 +11,7 @@ import (
 	"time"
 )
 
+// PGStore - структура БД
 type PGStore struct {
 	cfg    *config.Config
 	logger *loggers.Logger
@@ -86,6 +87,7 @@ func createTable(ctx context.Context, db *sql.DB, logger *loggers.Logger) error 
 	return tx.Commit()
 }
 
+// AddClient - добаление клиента в БД и дефолтные значения алгоритмов
 func (p *PGStore) AddClient(ctx context.Context, c *model.Client) error {
 	q := `INSERT INTO clients (client_name, version, image, cpu, memory, priority, need_restart, spawned_at, created_at, updated_at)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`
@@ -107,6 +109,8 @@ func (p *PGStore) AddClient(ctx context.Context, c *model.Client) error {
 	}
 	return nil
 }
+
+// UpdateClient - обновление клиента в БД
 func (p *PGStore) UpdateClient(ctx context.Context, client *model.Client) error {
 	q := `UPDATE clients SET client_name=$1, version=$2, image=$3, cpu=$4, memory=$5, priority=$6, need_restart=$7, spawned_at=$8, updated_at=$9 
 			WHERE id=$10`
@@ -118,6 +122,8 @@ func (p *PGStore) UpdateClient(ctx context.Context, client *model.Client) error 
 	}
 	return nil
 }
+
+// DeleteClient - удаление клиента и алгоритмов из БД
 func (p *PGStore) DeleteClient(ctx context.Context, client *model.Client) error {
 	q := `DELETE FROM clients WHERE id=$1`
 	_, err := p.db.ExecContext(ctx, q, client.ID)
@@ -133,6 +139,8 @@ func (p *PGStore) DeleteClient(ctx context.Context, client *model.Client) error 
 	}
 	return nil
 }
+
+// UpdateAlgorithmStatus - обновление статусов алноритмов в БД
 func (p *PGStore) UpdateAlgorithmStatus(ctx context.Context, as *model.AlgorithmStatus) error {
 	q := `UPDATE algorithm_status SET vwap=$1, twap=$2, hft=$3 WHERE client_id=$4`
 	_, err := p.db.ExecContext(ctx, q, as.VWAP, as.TWAP, as.HFT, as.ClientID)
@@ -141,4 +149,23 @@ func (p *PGStore) UpdateAlgorithmStatus(ctx context.Context, as *model.Algorithm
 		return err
 	}
 	return nil
+}
+
+func (p *PGStore) GetAlgorithmStatus(ctx context.Context) ([]model.AlgorithmStatus, error) {
+	q := `SELECT id, client_id, vwap, twap, hft FROM algorithm_status`
+	rows, err := p.db.QueryContext(ctx, q)
+	if err != nil {
+		p.logger.Error("Failure to select algorithms from table", err)
+		return nil, err
+	}
+	var algorithms []model.AlgorithmStatus
+	for rows.Next() {
+		var a model.AlgorithmStatus
+		if err := rows.Scan(&a.AlgorithmID, &a.ClientID, &a.VWAP, &a.TWAP, &a.HFT); err != nil {
+			p.logger.Error("failed to scan algorithms from data")
+			return nil, err
+		}
+		algorithms = append(algorithms, a)
+	}
+	return algorithms, nil
 }

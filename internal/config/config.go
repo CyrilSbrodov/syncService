@@ -13,7 +13,7 @@ type Config struct {
 	DBPath      string `yaml:"db_path" env:"DB" env-default:"user=postgres password=postgres dbname=postgres sslmode=disable"`
 	StoragePath string `yaml:"storage_path" env:"STORE" env-default:"postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"`
 	Listener    struct {
-		Addr        string        `yaml:"addr" env:"ADDR" env-default:"localhost:8082"`
+		Addr        string        `yaml:"addr" env:"ADDR" env-default:"localhost:8080"`
 		Timeout     time.Duration `yaml:"timeout" env:"TIMEOUT" env-default:"4s"`
 		IdleTimeout time.Duration `yaml:"idle_timeout" env:"ITIMEOUT" env-default:"60s"`
 	} `yaml:"listener"`
