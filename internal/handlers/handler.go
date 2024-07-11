@@ -26,10 +26,8 @@ func NewHandler(cfg *config.Config, logger *loggers.Logger, storage storage.Stor
 }
 
 func (h *Handler) Register(r *mux.Router) {
-	r.HandleFunc("/api/register", h.SignUp()).Methods("POST")
-	r.HandleFunc("/api/login", h.SignIn()).Methods("POST")
-	secure := r.PathPrefix("/auth").Subrouter()
-	secure.Use(h.userIdentity)
-	secure.HandleFunc("/api/task", h.GetAll()).Methods("GET")
-	secure.HandleFunc("/api/task", h.NewList()).Methods("POST")
+	r.HandleFunc("/api/client", h.AddClient()).Methods("POST")
+	r.HandleFunc("/api/client", h.UpdateClient()).Methods("PUT")
+	r.HandleFunc("/api/client/{id}", h.DeleteClient()).Methods("DELETE")
+	r.HandleFunc("/api/algorithms", h.UpdateAlgorithmStatus()).Methods("POST")
 }

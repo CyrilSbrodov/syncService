@@ -10,6 +10,7 @@ import (
 // Config структура конфига для сервера.
 type Config struct {
 	Env         string `yaml:"env" env:"ENV" env-default:"local"`
+	DBPath      string `yaml:"db_path" env:"DB" env-default:"user=postgres password=postgres dbname=postgres sslmode=disable"`
 	StoragePath string `yaml:"storage_path" env:"STORE" env-default:"postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"`
 	Listener    struct {
 		Addr        string        `yaml:"addr" env:"ADDR" env-default:"localhost:8082"`

@@ -1,9 +1,14 @@
 package storage
 
+import (
+	"context"
+	"github.com/CyrilSbrodov/syncService/internal/model"
+)
+
 // Storage - интерфейс БД
 type Storage interface {
-	AddClient()
-	UpdateClient()
-	DeleteClient()
-	UpdateAlgorithmStatus()
+	AddClient(ctx context.Context, client *model.Client) error
+	UpdateClient(ctx context.Context, client *model.Client) error
+	DeleteClient(ctx context.Context, client *model.Client) error
+	UpdateAlgorithmStatus(ctx context.Context, as *model.AlgorithmStatus) error
 }

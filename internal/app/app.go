@@ -5,6 +5,8 @@ import (
 	"errors"
 	"github.com/CyrilSbrodov/syncService/cmd/loggers"
 	"github.com/CyrilSbrodov/syncService/internal/config"
+	"github.com/CyrilSbrodov/syncService/internal/handlers"
+	"github.com/CyrilSbrodov/syncService/internal/storage/postgres"
 	"github.com/gorilla/mux"
 	"log/slog"
 	"net/http"
@@ -33,19 +35,12 @@ func NewServerApp() *ServerApp {
 }
 
 func (a *ServerApp) Run() {
-	client, err := postgres.NewClient(context.Background(), 5, &a.cfg, a.logger)
-	if err != nil {
-		a.logger.Error("failed to start pg client", err)
-		return
-	}
-
-	store, err := repositories.NewPGStore(client, &a.cfg, a.logger)
+	db, err := postgres.NewPGStore(&a.cfg, a.logger)
 	if err != nil {
 		a.logger.Error("failed to start pg store", err)
 		return
 	}
-	t := transport.NewTransport(*store)
-	h := handlers.NewHandler(&a.cfg, a.logger, t)
+	h := handlers.NewHandler(&a.cfg, a.logger, db)
 
 	h.Register(a.router)
 
