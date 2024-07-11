@@ -16,7 +16,7 @@ func (h *Handler) AddClient() http.HandlerFunc {
 			return
 		}
 		if err := h.storage.AddClient(r.Context(), &client); err != nil {
-			if errors.Is(err, model.ErrorUserConflict) {
+			if errors.Is(err, model.ErrorClientConflict) {
 				http.Error(w, "client_name is already exists", http.StatusConflict)
 				return
 			}

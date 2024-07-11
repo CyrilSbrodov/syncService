@@ -94,7 +94,7 @@ func (p *PGStore) AddClient(ctx context.Context, c *model.Client) error {
 	if err != nil {
 		if pgErr, ok := err.(*pq.Error); ok && pgErr.Code == "23505" {
 			p.logger.Error("client_name already exists", err)
-			return model.ErrorUserConflict
+			return model.ErrorClientConflict
 		}
 		p.logger.Error("Failure to insert client into table", err)
 		return err

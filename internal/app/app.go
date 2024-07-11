@@ -57,7 +57,7 @@ func (a *ServerApp) Run() {
 			a.logger.Error("server not started", err, "server")
 		}
 	}()
-
+	a.logger.Info("server starting", slog.String("server", a.cfg.Listener.Addr))
 	c := make(chan os.Signal, 1)
 
 	signal.Notify(c, os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
