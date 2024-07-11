@@ -12,7 +12,7 @@ ____
 
 Сервис позволяет создавать, удалять, изменять клиентов и их алгоритмы. В автоматическом режиме, раз в 5 минут сервис проверяет базу данных, если в базе он находит алгоритмы со статусом true, то запускает pod. Если статус pod false, то сервис удаляет pod, если такой ранее был создан, или ничего не делает.
 
-Структура [клиента и алгоритмов](https://github.com/CyrilSbrodov/syncService/blob/main/internal/model/models.go):
+Структура [клиента и алгоритмов](https://github.com/CyrilSbrodov/syncService/blob/main/internal/model/model.go):
 ```GO
 // Client - структура клиента.
 type Client struct {
